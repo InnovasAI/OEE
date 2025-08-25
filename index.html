@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OEE Calculator — Mobile‑first (Hours)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#0f1629; --ink:#e8edf7; --muted:#94a3b8; --brand:#22d3ee;
+      --good:#16a34a; --warn:#f59e0b; --bad:#ef4444; --ring:rgba(34,211,238,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font:16px/1.45 Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; color:var(--ink); background:linear-gradient(180deg,#0b1020,#0a0f1e 40%,#080d1a)}
+
+    .wrap{max-width:960px;margin:0 auto;padding:20px 14px 32px}
+    header{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:12px;margin-top:2px}
+
+    /* Mobile‑first: single column; enhance at >=720px */
+    .grid{display:grid;gap:12px}
+    @media (min-width:720px){.grid{grid-template-columns: 1fr 1fr}}
+
+    .card{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+    .card h2{margin:.1rem 0 10px;font-size:16px}
+
+    /* Inputs */
+    .field{margin:10px 0}
+    .label{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:6px}
+    .hint{font-size:12px;color:var(--muted)}
+    .control{display:flex;gap:8px}
+    input[type=number],input[type=text]{flex:1;min-height:44px;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0a1224;color:var(--ink);outline:none;}
+    input:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--ring)}
+    .unit{align-self:center;min-width:68px;text-align:center;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#0a1224;color:var(--muted);}
+
+    .actions{position:sticky;bottom:0;left:0;right:0;display:flex;gap:8px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.35));padding-top:10px;margin-top:8px}
+    .btn{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0a1224;color:var(--ink);font-weight:700}
+    .btn.primary{background:linear-gradient(135deg,#22d3ee,#60a5fa);color:#061020;border-color:transparent}
+    .btn.warn{border-color:rgba(245,158,11,.6)}
+    .btn.danger{border-color:rgba(239,68,68,.6)}
+
+    /* KPIs */
+    .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    @media (min-width:720px){.kpis{grid-template-columns:repeat(5,1fr)}}
+    .kpi{background:#0a1224;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px}
+    .kpi h3{margin:0 0 6px;font-size:12px;color:var(--muted)}
+    .val{font-size:22px;font-weight:800}
+    .pill{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800}
+    .pill.good{background:rgba(22,163,74,.15);color:#86efac}
+    .pill.warn{background:rgba(245,158,11,.15);color:#fde68a}
+    .pill.bad{background:rgba(239,68,68,.15);color:#fecaca}
+
+    /* Table */
+    .tableWrap{overflow:auto}
+    table{width:100%;border-collapse:separate;border-spacing:0;border-radius:14px;border:1px solid rgba(255,255,255,.08)}
+    th,td{padding:10px 8px;text-align:left}
+    thead th{position:sticky;top:0;background:#0b162c;color:var(--muted);font-size:12px}
+    tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+
+    .note{font-size:12px;color:var(--muted)}
+    .status{min-height:20px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>OEE Calculator</h1>
+        <div class="sub">All time units in <strong>hours</strong>. Mobile‑first UI.</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Inputs -->
+      <section class="card" aria-labelledby="inputs">
+        <h2 id="inputs">Inputs</h2>
+        <div class="field">
+          <div class="label">Planned production time <span class="hint">Scheduled time</span></div>
+          <div class="control">
+            <input id="planned" type="number" min="0" step="0.01" value="8" inputmode="decimal" aria-label="Planned production time" />
+            <div class="unit">hours</div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">Unplanned downtime <span class="hint">Breakdowns, jams, waiting</span></div>
+          <div class="control">
+            <input id="downtime" type="number" min="0" step="0.01" value="1" inputmode="decimal" aria-label="Unplanned downtime" />
+            <div class="unit">hours</div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">Ideal rate <span class="hint">Best repeatable speed</span></div>
+          <div class="control">
+            <input id="rate" type="number" min="0" step="0.01" value="1440" inputmode="decimal" aria-label="Ideal rate" />
+            <div class="unit">parts/h</div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">Total pieces <span class="hint">Good + scrap</span></div>
+          <input id="total" type="number" min="0" step="1" value="900" inputmode="numeric" aria-label="Total pieces" />
+        </div>
+        <div class="field">
+          <div class="label">Good pieces</div>
+          <input id="good" type="number" min="0" step="1" value="870" inputmode="numeric" aria-label="Good pieces" />
+        </div>
+        <div class="field">
+          <div class="label">Shift / Line <span class="hint">Optional</span></div>
+          <input id="line" type="text" placeholder="e.g., Shift A / Line 1" aria-label="Shift or line" />
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="calcBtn" type="button">Calculate</button>
+          <button class="btn" id="addLogBtn" type="button">Add to Log</button>
+          <button class="btn warn" id="resetBtn" type="button">Reset</button>
+        </div>
+        <div class="status note" id="msg" role="status" aria-live="polite"></div>
+
+        <details style="margin-top:10px">
+          <summary class="note">How the math works</summary>
+          <ul class="note">
+            <li><strong>Run time (h)</strong> = Planned − Downtime.</li>
+            <li><strong>Availability</strong> = Run time ÷ Planned.</li>
+            <li><strong>Performance</strong> = Total ÷ (Run time × Ideal rate), capped at 100%.</li>
+            <li><strong>Quality</strong> = Good ÷ Total.</li>
+            <li><strong>OEE</strong> = Availability × Performance × Quality.</li>
+          </ul>
+        </details>
+      </section>
+
+      <!-- Results -->
+      <section class="card" aria-labelledby="results">
+        <h2 id="results">Results</h2>
+        <div class="kpis">
+          <div class="kpi"><h3>Run time (hours)</h3><div class="val" id="runTime">—</div></div>
+          <div class="kpi"><h3>Availability</h3><div class="val" id="availability">—</div></div>
+          <div class="kpi"><h3>Performance</h3><div class="val" id="performance">—</div></div>
+          <div class="kpi"><h3>Quality</h3><div class="val" id="quality">—</div></div>
+          <div class="kpi"><h3>OEE</h3><div class="val" id="oee">—</div><div class="pill" id="oeePill">—</div></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Log -->
+    <section class="card" aria-labelledby="log">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 id="log">Shift / Job Log</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="exportBtn" type="button" title="Export to CSV">Export CSV</button>
+          <button class="btn danger" id="clearLogBtn" type="button" title="Clear log">Clear Log</button>
+        </div>
+      </div>
+      <div class="note" style="margin:-4px 0 8px">One row per run. Results compute automatically.</div>
+      <div class="tableWrap">
+        <table id="logTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Shift/Line</th>
+              <th>Planned (h)</th>
+              <th>Downtime (h)</th>
+              <th>Ideal (parts/h)</th>
+              <th>Total</th>
+              <th>Good</th>
+              <th>Run (h)</th>
+              <th>Avail.</th>
+              <th>Perf.</th>
+              <th>Qual.</th>
+              <th>OEE</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="note">Tip: performance & quality above 90% with availability above 85% suggest a healthy process. Investigate any OEE below 60%.</p>
+  </div>
+
+  <script>
+  (function(){
+    const $ = (s)=>document.querySelector(s);
+    const inputs = {
+      planned: $('#planned'),
+      downtime: $('#downtime'),
+      rate: $('#rate'),
+      total: $('#total'),
+      good: $('#good'),
+      line: $('#line')
+    };
+    const out = {
+      runTime: $('#runTime'),
+      availability: $('#availability'),
+      performance: $('#performance'),
+      quality: $('#quality'),
+      oee: $('#oee'),
+      oeePill: $('#oeePill'),
+      msg: $('#msg')
+    };
+    const logBody = $('#logBody');
+
+    function clamp(x,min,max){return Math.max(min,Math.min(max,x))}
+    function fmtPct(x){return isFinite(x)? (x*100).toFixed(1)+'%':'—'}
+    function fmtNum(x,dp=2){return isFinite(x)? Number(x.toFixed(dp)).toString():'—'}
+    function status(o){if(!isFinite(o))return{c:'',t:'—'}; if(o<.60)return{c:'bad',t:'Needs Attention'}; if(o<=.85)return{c:'warn',t:'Fair'}; return{c:'good',t:'Great'}}
+
+    function compute(){
+      const planned = parseFloat(inputs.planned.value);
+      const downtime = parseFloat(inputs.downtime.value);
+      const rate = parseFloat(inputs.rate.value); // parts per hour
+      const total = parseFloat(inputs.total.value);
+      const good = parseFloat(inputs.good.value);
+
+      if([planned,downtime,rate,total,good].some(v=>isNaN(v)||v<0)){
+        out.msg.textContent = 'Enter non‑negative numbers in all fields.'; return {ok:false};
+      }
+
+      const runH = Math.max(0, planned - downtime);
+      const availability = planned>0 ? runH/planned : 0;
+      const perfRaw = (runH>0 && rate>0) ? (total/(runH*rate)) : 0; // cap at 1
+      const performance = clamp(perfRaw,0,1);
+      const quality = total>0 ? (good/total) : 0;
+      const oee = availability*performance*quality;
+
+      out.runTime.textContent = fmtNum(runH,2);
+      out.availability.textContent = fmtPct(availability);
+      out.performance.textContent = fmtPct(performance);
+      out.quality.textContent = fmtPct(quality);
+      out.oee.textContent = fmtPct(oee);
+      const s = status(oee); out.oeePill.className = 'pill '+s.c; out.oeePill.textContent = s.t;
+      out.msg.textContent='';
+      return {ok:true, planned, downtime, rate, total, good, runH, availability, performance, quality, oee};
+    }
+
+    // Auto compute
+    Object.values(inputs).forEach(el=>el.addEventListener('input', compute));
+    $('#calcBtn').addEventListener('click', compute);
+    $('#resetBtn').addEventListener('click', ()=>{
+      inputs.planned.value = 8; inputs.downtime.value = 1; inputs.rate.value = 1440; inputs.total.value = 900; inputs.good.value = 870; inputs.line.value = '';
+      compute();
+    });
+
+    // Log persistence
+    const KEY='oeeLogV2_hours';
+    const load=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}};
+    const save=(rows)=>localStorage.setItem(KEY,JSON.stringify(rows));
+    function rowToTr(r){
+      const tr = document.createElement('tr');
+      const pct = (x)=>isFinite(x)?(x*100).toFixed(1)+'%':'—';
+      const num = (x)=>isFinite(x)?Number(x.toFixed(2)):'—';
+      tr.innerHTML = `
+        <td>${r.date}</td>
+        <td>${r.line||''}</td>
+        <td>${num(r.planned)}</td>
+        <td>${num(r.downtime)}</td>
+        <td>${num(r.rate)}</td>
+        <td>${Math.round(r.total)}</td>
+        <td>${Math.round(r.good)}</td>
+        <td>${num(r.runH)}</td>
+        <td>${pct(r.availability)}</td>
+        <td>${pct(r.performance)}</td>
+        <td>${pct(r.quality)}</td>
+        <td>${pct(r.oee)}</td>
+      `;
+      return tr;
+    }
+    function render(){ const rows=load(); logBody.innerHTML=''; rows.forEach(r=>logBody.appendChild(rowToTr(r))); }
+
+    $('#addLogBtn').addEventListener('click',()=>{
+      const res = compute(); if(!res.ok) return;
+      const row = { date:new Date().toISOString().slice(0,10), line:inputs.line.value.trim(), ...res }; delete row.ok;
+      const rows=load(); rows.unshift(row); save(rows); render(); out.msg.textContent='Added to log.';
+    });
+    $('#clearLogBtn').addEventListener('click',()=>{ if(confirm('Clear all log entries?')){ save([]); render(); out.msg.textContent='Log cleared.'; }});
+
+    // CSV export
+    $('#exportBtn').addEventListener('click',()=>{
+      const rows=load(); if(!rows.length){ out.msg.textContent='Log is empty.'; return; }
+      const head=['Date','Shift/Line','Planned (h)','Downtime (h)','Ideal (parts/h)','Total','Good','Run (h)','Availability','Performance','Quality','OEE'];
+      const toPct=(x)=>isFinite(x)?(x*100).toFixed(1)+'%':'';
+      const csv=[head.join(',')].concat(rows.map(r=>[
+        r.date, esc(r.line||''), r.planned, r.downtime, r.rate, r.total, r.good, r.runH, toPct(r.availability), toPct(r.performance), toPct(r.quality), toPct(r.oee)
+      ].join(',')));
+      const blob=new Blob([csv.join('\n')],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='oee_log_hours.csv'; a.click(); URL.revokeObjectURL(url);
+      out.msg.textContent='CSV exported.';
+    });
+    function esc(s){ if(s==null) return ''; const needs=/[",\n]/.test(s); return needs? '"'+s.replaceAll('"','""')+'"' : s; }
+
+    // init
+    compute(); render();
+  })();
+  </script>
+</body>
+</html>
